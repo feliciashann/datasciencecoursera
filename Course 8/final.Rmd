@@ -1,0 +1,82 @@
+--------------------------------------------------------------------------------
+  Johns Hopkins University - Practical Machine Learning Final
+--------------------------------------------------------------------------------
+
+#data description
+
+This data is for researching if HAR can correctly measure how "well" a action if performed where 6 participants were asked to use from Class A to Class E ways to complete a action.
+
+Considering that each and every item measured does gives us a hint on which class of action our participants is performing, we suggest using simple svm for prediction.
+
+#Preparation
+```{r libraries, results="hide"}
+#install.packages("rattle")
+#install.packages("RGtk2")
+#install.packages("rpart.plot")
+#install.packages("repmis")
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(repmis)
+library(e1071)
+```
+
+
+#Loading Data from Local
+```{r preprocessing, cache=TRUE, results="hide"}
+training <- read.csv("pml-training.csv", na.strings = c("NA", ""))
+testing <- read.csv("pml-testing.csv", na.strings = c("NA", ""))
+```
+
+#Data Cleansing
+```{r dataCleaning}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+```
+
+#Splitting training data into train & valid
+```{r splitting}
+set.seed(1028) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+train <- trainData[inTrain, ]
+valid <- trainData[-inTrain, ]
+```
+
+
+#Use SVM model for prediction
+
+where the acurracy is 0.94, which fulfills the expectation therefore we suppose there's no need to use cross-validation on this topic. However another issue when using SVM is that it's hard to visualize the prediction model once the dimension is over 3; therefore sadly we're not able to provide any chart unless a PCA is performed.
+```{r SVM}
+svm.model <- svm(classe~. , data=train)
+svm.pred <- predict(svm.model,valid)
+confsvm <- confusionMatrix(svm.pred,valid$classe)
+
+accuracyRf <- confsvm$overall[1]
+print(accuracyRf)
+
+#training<-training[sample(nrow(training)),]
+#folds <- cut(seq(1,nrow(training)),breaks=10,labels=FALSE)
+#modelRoom <- data.frame(model="", accuracy=0)
+#for(i in 1:10){
+    #Segement your data by fold using the which() function 
+    #testIndexes <- which(folds==i,arr.ind=TRUE)
+    #testData <- training[testIndexes, ]
+    #trainData <- training[-testIndexes, ]
+    #svm.model <- svm(classe~. , data=trainData)
+    #svm.pred <- predict(svm.model,testData)
+    #confsvm <- confusionMatrix(svm.pred,testData$classe)
+    #cat(i, "th acurracy is :" , confsvm$overall[1], "\n")
+    #modelRoom <- rbind(modelRoom, c(svm.model,confsvm$overall[1])
+#}
+
+```
+
+Then we use the algorithm to predict for quiz; here we remove the problem_id column from testData since that does not exist in training data thus would introduce error when predicting using our svm model built above.
+```{r}
+testData <- subset(testData, select =-problem_id)
+predict(svm.model, testData)
+```
